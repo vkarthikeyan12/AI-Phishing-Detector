@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Phishing Detector</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b1020;
+      --card-bg: #111827;
+      --accent: #3b82f6;
+      --accent-soft: rgba(59, 130, 246, 0.12);
+      --danger: #ef4444;
+      --safe: #22c55e;
+      --border-subtle: rgba(148, 163, 184, 0.4);
+      --text-main: #e5e7eb;
+      --text-subtle: #9ca3af;
+      --badge-bg: rgba(15, 23, 42, 0.85);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1d283a 0, #020617 55%, #020617 100%);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1rem;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 1024px;
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.35), transparent 55%),
+        radial-gradient(circle at top right, rgba(236, 72, 153, 0.25), transparent 60%),
+        linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.98));
+      box-shadow:
+        0 24px 60px rgba(15, 23, 42, 0.8),
+        0 0 0 1px rgba(15, 23, 42, 0.6);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .shell::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top, rgba(148, 163, 184, 0.35), transparent 58%);
+      opacity: 0.12;
+      pointer-events: none;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 1.4rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+      background: radial-gradient(circle at top left, rgba(30, 64, 175, 0.8), rgba(15, 23, 42, 0.9));
+      position: relative;
+      z-index: 1;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+
+    .traffic-dots {
+      display: inline-flex;
+      gap: 0.35rem;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    .dot.red {
+      background: #f97373;
+    }
+
+    .dot.amber {
+      background: #facc15;
+    }
+
+    .dot.green {
+      background: #22c55e;
+    }
+
+    .title {
+      font-size: 0.95rem;
+      color: rgba(226, 232, 240, 0.95);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    .badge {
+      padding: 0.15rem 0.55rem;
+      font-size: 0.7rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      color: var(--text-subtle);
+      background: rgba(15, 23, 42, 0.75);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
+    }
+
+    .content {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr);
+      gap: 1px;
+      background: rgba(15, 23, 42, 0.85);
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 850px) {
+      .content {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .panel {
+      padding: 1.4rem;
+      background: rgba(15, 23, 42, 0.96);
+    }
+
+    .panel + .panel {
+      border-left: 1px solid rgba(30, 64, 175, 0.3);
+    }
+
+    @media (max-width: 850px) {
+      .panel + .panel {
+        border-left: none;
+        border-top: 1px solid rgba(30, 64, 175, 0.35);
+      }
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #9ca3af;
+      margin-bottom: 0.4rem;
+    }
+
+    .panel-subtitle {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-bottom: 1.2rem;
+    }
+
+    .field {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin-bottom: 0.35rem;
+    }
+
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      padding: 0.55rem 0.65rem;
+      border-radius: 0.5rem;
+      border: 1px dashed rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.85);
+      color: var(--text-main);
+      font-size: 0.84rem;
+      cursor: pointer;
+    }
+
+    input[type="file"]::file-selector-button {
+      padding: 0.35rem 0.8rem;
+      margin-right: 0.7rem;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
+      color: #e5e7eb;
+      font-size: 0.74rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    button {
+      margin-top: 0.5rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
+      color: #e5e7eb;
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.45);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    button span.spark {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(248, 250, 252, 0.9);
+      box-shadow: 0 0 16px rgba(248, 250, 252, 0.9);
+    }
+
+    button:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5);
+    }
+
+    .flash-list {
+      list-style: none;
+      padding-left: 0;
+      margin: 0.4rem 0 0.8rem;
+    }
+
+    .flash-item {
+      font-size: 0.8rem;
+      color: #fecaca;
+      background: rgba(153, 27, 27, 0.35);
+      border-radius: 0.5rem;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid rgba(248, 113, 113, 0.4);
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.3rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .pill {
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      color: #9ca3af;
+      background: var(--badge-bg);
+    }
+
+    .pill.highlight {
+      border-color: rgba(59, 130, 246, 0.85);
+      color: #bfdbfe;
+      background: rgba(37, 99, 235, 0.18);
+    }
+
+    .result-summary {
+      border-radius: 0.9rem;
+      padding: 0.9rem 0.85rem;
+      margin-bottom: 0.8rem;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: radial-gradient(circle at top left, rgba(30, 64, 175, 0.55), rgba(15, 23, 42, 0.9));
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7rem;
+    }
+
+    .result-badge {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      margin-top: 0.2rem;
+    }
+
+    .result-badge.safe {
+      background: var(--safe);
+      box-shadow: 0 0 14px rgba(34, 197, 94, 0.9);
+    }
+
+    .result-badge.danger {
+      background: var(--danger);
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.9);
+    }
+
+    .result-text-main {
+      font-size: 0.9rem;
+    }
+
+    .result-text-main strong {
+      font-weight: 600;
+    }
+
+    .result-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin-bottom: 0.2rem;
+    }
+
+    .tag-row {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-top: 0.4rem;
+    }
+
+    .tag {
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+    }
+
+    .tag.risk-low {
+      border-color: rgba(34, 197, 94, 0.7);
+      color: #bbf7d0;
+      background: rgba(22, 163, 74, 0.3);
+    }
+
+    .tag.risk-medium {
+      border-color: rgba(250, 204, 21, 0.8);
+      color: #fef3c7;
+      background: rgba(202, 138, 4, 0.35);
+    }
+
+    .tag.risk-high {
+      border-color: rgba(239, 68, 68, 0.9);
+      color: #fee2e2;
+      background: rgba(185, 28, 28, 0.4);
+    }
+
+    .section {
+      margin-top: 0.85rem;
+    }
+
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin-bottom: 0.25rem;
+    }
+
+    .section-body {
+      font-size: 0.85rem;
+      color: #e5e7eb;
+    }
+
+    .section-body p {
+      margin: 0 0 0.4rem;
+    }
+
+    .section-body ul {
+      margin: 0.1rem 0 0.1rem 1.1rem;
+      padding-left: 0;
+      font-size: 0.82rem;
+      color: #9ca3af;
+    }
+
+    .section-body li {
+      margin-bottom: 0.15rem;
+    }
+
+    .code-block {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.8rem;
+      border-radius: 0.7rem;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      padding: 0.6rem 0.7rem;
+      color: #e5e7eb;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.35rem 0.65rem;
+      margin-bottom: 0.8rem;
+    }
+
+    @media (max-width: 600px) {
+      .meta-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .meta-item-label {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      margin-bottom: 0.05rem;
+    }
+
+    .meta-item-value {
+      font-size: 0.86rem;
+      color: #e5e7eb;
+      word-break: break-all;
+    }
+
+    .footer-note {
+      font-size: 0.74rem;
+      color: #6b7280;
+      margin-top: 1.1rem;
+    }
+
+    .footer-note strong {
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="header">
+      <div class="header-left">
+        <div class="traffic-dots">
+          <span class="dot red"></span>
+          <span class="dot amber"></span>
+          <span class="dot green"></span>
+        </div>
+        <div>
+          <div class="title">Phishing Detector · Grok-Driven</div>
+        </div>
+      </div>
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Live risk assessment
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Left: Upload & controls -->
+      <div class="panel">
+        <div class="panel-title">Upload email (.eml)</div>
+        <div class="panel-subtitle">Run the raw message through a Grok-powered phishing classifier.</div>
+
+        <form method="POST" enctype="multipart/form-data">
+          <div class="field">
+            <label for="eml_file">Message file</label>
+            <input type="file" name="eml_file" id="eml_file" accept=".eml" required />
+          </div>
+
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              <ul class="flash-list">
+                {% for msg in messages %}
+                  <li class="flash-item">{{ msg }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          {% endwith %}
+
+          <div class="pill-row">
+            <span class="pill highlight">LLM-based analysis</span>
+            <span class="pill">Header + body parsing</span>
+            <span class="pill">Risk scoring</span>
+          </div>
+
+          <button type="submit">
+            <span class="spark"></span>
+            Analyze email
+          </button>
+        </form>
+
+        <div class="footer-note">
+          <strong>Note:</strong> This is a prototype. Always follow your organization's security policy and never rely on a single tool for final decisions.
+        </div>
+      </div>
+
+      <!-- Right: Results & parsed email -->
+      <div class="panel">
+        <div class="panel-title">Analysis</div>
+        <div class="panel-subtitle">
+          Results from Grok's phishing detector, plus the parsed email content.
+        </div>
+
+        {% if result %}
+          {% if result.error %}
+            <div class="result-summary">
+              <span class="result-badge danger"></span>
+              <div>
+                <div class="result-label">Error</div>
+                <div class="result-text-main">
+                  {{ result.error }}
+                </div>
+              </div>
+            </div>
+          {% else %}
+            {% if result.is_phishing is defined %}
+              <div class="result-summary">
+                <span class="result-badge {% if result.is_phishing %}danger{% else %}safe{% endif %}"></span>
+                <div>
+                  <div class="result-label">
+                    {% if result.is_phishing %}Potential phishing detected{% else %}No phishing indicators{% endif %}
+                  </div>
+                  <div class="result-text-main">
+                    <strong>Verdict:</strong>
+                    {% if result.is_phishing %}
+                      This email is likely a phishing attempt.
+                    {% else %}
+                      This email does not appear to be phishing based on the analyzed content.
+                    {% endif %}
+                  </div>
+                  <div class="tag-row">
+                    {% set rl = (result.risk_level or '') | lower %}
+                    <span class="tag
+                      {% if rl == 'high' %}risk-high
+                      {% elif rl == 'medium' %}risk-medium
+                      {% else %}risk-low
+                      {% endif %}">
+                      Risk: {{ result.risk_level|default('unknown')|upper }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section">
+                <div class="section-title">Reasons</div>
+                <div class="section-body">
+                  <p>{{ result.reasons }}</p>
+                </div>
+              </div>
+
+              <div class="section">
+                <div class="section-title">Recommended action</div>
+                <div class="section-body">
+                  <p>{{ result.recommended_action }}</p>
+                </div>
+              </div>
+            {% else %}
+              <div class="section">
+                <div class="section-title">Raw model response</div>
+                <div class="section-body">
+                  <div class="code-block">{{ result.raw_response }}</div>
+                </div>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% else %}
+          <div class="section">
+            <div class="section-title">Waiting for input</div>
+            <div class="section-body">
+              <p>Upload an <strong>.eml</strong> file to see the model's phishing assessment here.</p>
+              <ul>
+                <li>Headers and body are parsed on the server.</li>
+                <li>Grok classifies risk and suggests next steps.</li>
+              </ul>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if email_data %}
+          <div class="section">
+            <div class="section-title">Parsed email</div>
+            <div class="meta-grid">
+              <div>
+                <div class="meta-item-label">From</div>
+                <div class="meta-item-value">{{ email_data.from }}</div>
+              </div>
+              <div>
+                <div class="meta-item-label">To</div>
+                <div class="meta-item-value">{{ email_data.to }}</div>
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <div class="meta-item-label">Subject</div>
+                <div class="meta-item-value">{{ email_data.subject }}</div>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="section-title" style="margin-top: 0.4rem;">Body (text view)</div>
+              <div class="code-block">{{ email_data.body }}</div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
